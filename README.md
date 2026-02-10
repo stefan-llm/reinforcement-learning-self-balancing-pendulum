@@ -1,6 +1,32 @@
 # I created a self balancing pendulum using reinforcment learning
 I solved the inverted pendulum problem by using a Deep Q network implementing forward propogation and backward propogation.
 
+## The Problem
+  The inverted pendulum is a classic control problem where an agent
+  must balance a pole upright on a cart by applying left or right
+  forces. The system is inherently unstable — without continuous
+  correction, the pole falls.
+  
+## State & Action Space
+  The environment provides a state consisting of four observations:
+  cart position, cart velocity, pole angle, and pole angular
+  velocity. At each timestep, the agent chooses a discrete action —
+  push left or push right.
+
+## Forward propagation
+  passes the current state through the
+  network's layers to produce Q-value estimates for each possible
+  action. The agent selects the action with the highest Q-value
+  (with epsilon-greedy exploration to balance exploitation and
+  exploration).
+
+## Backward propagation
+  updates the network weights by minimising
+  the loss between predicted Q-values and target Q-values derived
+  from the Bellman equation:
+  Q_target = reward + γ * max(Q(s', a')), where γ is the discount
+  factor and s' is the next state.
+
 Ive found that in my case, steps between 500 to 1000 is where the pendulum can balance perfectly when switched to test mode
 
 # How it works
@@ -10,10 +36,6 @@ Ive found that in my case, steps between 500 to 1000 is where the pendulum can b
     
     F key - Speed up the learning process
 
-
-# The learning process
-
-As soon as your code runs, the network has 3 options -  move left, move right or not move at all.
 
 ***Initial State:***
 
@@ -50,6 +72,10 @@ The agent maintains two networks - a main network that's constantly updated, and
     Episodes 200-500: Learns smooth corrective actions
     
     Episode 500+: Masters the task, can balance indefinitely
+
+
+## Idea
+   During the development process...
 
 
 # Formulas used in the project:

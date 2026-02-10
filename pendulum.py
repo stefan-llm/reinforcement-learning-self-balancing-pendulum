@@ -1,4 +1,3 @@
-"""DQN Pendulum - FAST LEARNING VERSION"""
 import pygame, math, random, numpy as np, pickle, os
 from collections import deque
 

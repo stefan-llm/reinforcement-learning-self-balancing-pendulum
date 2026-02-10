@@ -258,7 +258,7 @@ def main():
             for i, s in enumerate(stats):
                 screen.blit(font.render(s, True, WHITE), (20, 20 + i*25))
 
-            screen.blit(font.render("SPACE - pause  T - test  F - fast", True, GRAY), (W-400, H-30))
+            screen.blit(font.render("SPACE - pause  T - test  F - fast (50x)", True, GRAY), (W-400, H-30))
 
             # Simple bar graph
             if len(agent.rewards) > 10:

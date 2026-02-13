@@ -1,3 +1,9 @@
+# Important
+Please have numpy and pygame installed before running the project:
+```
+pip install numpy
+pip install pygame
+```
 # Inverted Pendulum — Deep Q-Network from Scratch
 
 I solved the inverted pendulum problem using reinforcement learning, implementing a Deep Q-Network with forward propagation and backward propagation entirely from scratch — no ML frameworks.

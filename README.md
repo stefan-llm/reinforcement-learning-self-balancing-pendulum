@@ -36,6 +36,11 @@ Ive found that in my case, steps between 500 to 1000 is where the pendulum can b
     
     F key - Speed up the learning process
 
+  As soon as the graph goes to green such as this -  <img width="354" height="220" alt="image" src="https://github.com/user-attachments/assets/41cc1804-7d54-42d0-b5af-31186f62d8c9" />
+
+  
+  Then press the F to stop 50x speed, then press the T key to test the pendulum and watch it balance indefinitely.
+
 
 ***Initial State:***
 

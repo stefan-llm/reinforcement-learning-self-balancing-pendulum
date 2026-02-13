@@ -1,7 +1,23 @@
+"""
+DQN (Deep Q-Network) Inverted Pendulum Problem
+================================================
+A reinforcement learning agent that learns to balance an inverted pendulum on a cart,
+built from scratch using NumPy (no ML frameworks such as PyTorch or TensorFlow).
+
+The agent uses:
+    A feedforward neural network with back-propagation for Q-value approximation
+    Experience replay buffer to break correlation between consecutive samples
+    A target network to stabilise training by providing consistent Q-value targets
+    Epsilon-greedy exploration to balance exploration vs exploitation
+
+The environment simulates real physics: gravity pulls the pendulum down,
+and the agent must learn to apply left/right forces to the cart to keep it upright.
+"""
+
 import pygame, math, random, numpy as np, pickle, os
 from collections import deque
 
-# Initialise pygame screen width/height, synchronise clock
+# Initialise pygame screen width/height, initialise clock
 pygame.init()
 W, H = 1000, 700
 screen = pygame.display.set_mode((W, H))
@@ -35,7 +51,6 @@ class NN:
             z = self.A[-1] @ w + b
             self.A.append(np.tanh(z) if i < len(self.W)-1 else z)
         return self.A[-1]
-
     # Backpropagation - computes error between output and target.
     # Propagates gradients backwards through each layer to update weights and biases.
     # Gradients are clipped to [-1, 1] preventing exploding gradients
@@ -52,7 +67,7 @@ class NN:
             if i > 0:
                 d = (d @ self.W[i].T) * (1 - self.A[i]**2)
 
-    # Copies all weights and biases from another NN instance
+    # Copies all weights and biases from another Neural Network instance
     # Used to sync the target network with the main network
     def copy_from(self, other):
         self.W = [w.copy() for w in other.W]
@@ -160,7 +175,7 @@ class Env:
         th = math.atan2(math.sin(self.theta), math.cos(self.theta))
 
         # REWARD: +1 alive, penalise cart drift and velocity to minimise movement
-        r = 1.0 - 0.3 * (self.x / 2.5)**2 - 0.2 * (self.x_dot / 5)**2
+        r = 1.0 - 0.3 * (self.x / 2.5)**2 - 0.2 * (self.x_dot / 5)**2 - 0.5 * (th / 0.4)**2
 
         # tight angle = learns to stay very upright
         fallen = abs(th) > 0.4 or abs(self.x) > 2.5
@@ -191,7 +206,6 @@ class Env:
         th = abs(math.atan2(math.sin(self.theta), math.cos(self.theta)))
         pygame.draw.circle(screen, GREEN if th < 0.1 else YELLOW if th < 0.3 else RED, (bx, by), 12)
 
-
 # Main game loop - handles keyboard input, runs the agent's action-train loop,
 # displays stats on screen, and renders a reward history graph
 def main():
@@ -219,7 +233,8 @@ def main():
                 next_state, reward, done = env.step(action, training)
                 if training:
                     agent.memory.append((state, action, reward, next_state, done))
-                    agent.train()
+                    if env.steps % 4 == 0:
+                        agent.train()
                 state = next_state
                 if done:
                     agent.rewards.append(env.total_r)
@@ -228,8 +243,7 @@ def main():
                         agent.best_test_steps = max(agent.best_test_steps, env.steps)
                     if training:
                         agent.episode += 1
-                        # Fast epsilon decay
-                        agent.epsilon = max(0.01, agent.epsilon * 0.98)
+                        agent.epsilon = max(0.01, agent.epsilon * 0.995)
                         if agent.episode % 5 == 0:
                             agent.target.copy_from(agent.net)
                         if agent.episode % 50 == 0:
@@ -244,15 +258,17 @@ def main():
             screen.blit(font.render(f"DQN Pendulum - {mode}", True, ORANGE if training else GREEN), (W//2-100, 10))
             env.draw(action)
 
+            # Calculates the average from the last 20 episodes
             avg = np.mean(agent.rewards[-20:]) if agent.rewards else 0
             stats = [
                 f"Episode: {agent.episode}",
                 f"Epsilon: {agent.epsilon:.0%}",
                 f"Steps: {env.steps}",
                 f"Reward: {env.total_r:.0f}",
-                f"Avg(20): {avg:.0f}",
+                f"Avg(last 20 episodes): {avg:.0f}",
                 f"Highest reward: {agent.best:.0f}",
-                f"Highest balance time(during training): {agent.best_test_steps * 0.016:.1f}s at {agent.best_test_steps} steps"
+                # Commented highest balance time for testing purposes
+                #f"Highest balance time(during training): {agent.best_test_steps * 0.016:.1f}s at {agent.best_test_steps} steps"
             ]
 
             for i, s in enumerate(stats):
@@ -260,7 +276,7 @@ def main():
 
             screen.blit(font.render("SPACE - pause  T - test  F - fast (50x)", True, GRAY), (W-400, H-30))
 
-            # Simple bar graph
+            # Creates and displays a bar graph
             if len(agent.rewards) > 10:
                 pts = agent.rewards[-150:]
                 mx = max(pts) if pts else 1
@@ -274,5 +290,5 @@ def main():
 
     agent.save()
     pygame.quit()
-
+# Call main function
 main()

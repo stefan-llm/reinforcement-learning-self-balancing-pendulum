@@ -1,6 +1,6 @@
 """
 DQN (Deep Q-Network) Inverted Pendulum Problem
-
+================================================
 A reinforcement learning agent that learns to balance an inverted pendulum on a cart,
 built from scratch using NumPy (no ML frameworks such as PyTorch or TensorFlow).
 
@@ -35,31 +35,32 @@ BLACK, WHITE, GRAY, RED, GREEN, BLUE, YELLOW, CYAN, ORANGE = (
 FORCES = [-50, 0, 50]
 N_ACTIONS = 3
 
-# Neural Network class - the feedforward network built from scratch using NumPy
+# Create a Neural Network class
 class NN:
-    # Initialise weights using He Initialization and biases as zeros
-    # sizes list defining neurons per layer
+    # Using He Initialization create and set the weights and biases as zeros
     def __init__(self, sizes):
+        # create a sizes list defining neurons per layer
         self.W = [np.random.randn(sizes[i], sizes[i+1]) * np.sqrt(2/sizes[i]) for i in range(len(sizes)-1)]
         self.B = [np.zeros((1, sizes[i+1])) for i in range(len(sizes)-1)]
 
-    # Forward propagation - passes input through each layer
-    # Applies tanh activation on hidden layers, linear on output layer
+    # Function for Forward propagation - passes input through each layer
     def forward(self, x):
         self.A = [x]
         for i, (w, b) in enumerate(zip(self.W, self.B)):
             z = self.A[-1] @ w + b
+            # Applies tanh activation on hidden layers, linear on output layer
             self.A.append(np.tanh(z) if i < len(self.W)-1 else z)
         return self.A[-1]
-    # Backpropagation - computes error between output and target.
-    # Propagates gradients backwards through each layer to update weights and biases.
-    # Gradients are clipped to [-1, 1] preventing exploding gradients
-    # Set the learning rate to 0.005
+    # Function for Backpropagation - computes the error between output and target.
+    # In my case setting the learning rate to 0.005 is the sweet spot because its large enough to learn before exploration runs out,
+    # but small enough that the clipped gradients don't overshoot the Q-value surface being approximated by 24 neurons.
     def backward(self, target, lr=0.005):
         d = self.A[-1] - target
+        # Propagates gradients backwards through each layer to update weights and biases.
         for i in range(len(self.W)-1, -1, -1):
             gw = self.A[i].T @ d / len(target)
             gb = d.mean(0, keepdims=True)
+            # Gradients are clipped to [-1, 1] preventing exploding gradients resulting in instability
             gw = np.clip(gw, -1, 1)
             gb = np.clip(gb, -1, 1)
             self.W[i] -= lr * gw
@@ -67,60 +68,68 @@ class NN:
             if i > 0:
                 d = (d @ self.W[i].T) * (1 - self.A[i]**2)
 
-    # Copies all weights and biases from another Neural Network instance
-    # Used to sync the target network with the main network
+    # Create a function used to sync the target network with the main network
     def copy_from(self, other):
+    # Copies all weights and biases from another Neural Network instance
         self.W = [w.copy() for w in other.W]
         self.B = [b.copy() for b in other.B]
 
 
-# DQN Reinforcement_learning class the reinforcement learning agent that learns to balance the pendulum
+# Creating a reinforcment learning class will be useful calling back to further on calculations
 class Reinforcement_learning:
-    # Initialise the main network and a target network.
     # the target network only gets updated every 5 episodes as later it's used to calculate the Q targets in the bellman equasion.
-    # initailise memory at 50000, epsilion, episode, rewards array, best, best test steps
     def __init__(self):
-        self.net = NN([4, 24, 24, N_ACTIONS])  # small and fast
+        # Initialise the main network and a target network and copy the target network using the copy_from function.
+        self.net = NN([4, 24, 24, N_ACTIONS])
         self.target = NN([4, 24, 24, N_ACTIONS])
         self.target.copy_from(self.net)
+        # initailise memory at 50000, epsilion at 1.0, episode at 0, rewards array, best at 0, best test steps at 0
         self.memory = deque(maxlen=50000)
         self.epsilon = 1.0
         self.episode = 0
         self.rewards = []
         self.best = 0
+        # best test used in the development process to determine the longest the pendulum can balance
         self.best_test_steps = 0
 
 
-    # Epsilon-greedy algorithm - picks a random action with probability
-    # epsilon (exploration), otherwise picks the best action from the network (exploitation)
+    # Create a function called act that uses an Epsilon-greedy algorithm picking a random action with probability
+    # The parameter state "s" is used to feed it into the network and the agent decides which action to take based on it
     def act(self, s, train=True):
+        # epsilon (exploration), otherwise picks the best action from the network (exploitation)
         if train and random.random() < self.epsilon:
             return random.randint(0, N_ACTIONS-1)
         return int(np.argmax(self.net.forward(np.array(s).reshape(1,-1))[0]))
 
-    # Samples a batch of 64 experiences from replay buffer, computes DQN target
-    # Q-values using the Bellman equation, then updates the network using backpropagation
+
+    # Create a function called train
     def train(self):
+        # Samples a batch of 64 experiences from replay buffer.
         if len(self.memory) < 64: return
+        # Store batch as a list of 64 tupleseach stored as: ( State, Action, Reward, "s2" as next_state, Done)
         batch = random.sample(self.memory, 64)
         s, a, r, s2, d = map(np.array, zip(*batch))
 
+        # Compute the DQN target by using the Bellman equasion
         q = self.net.forward(s)
+        # Predict Q-values for all actions from the next state using the target network q_next = self.target.forward(s2)
         q_next = self.target.forward(s2)
 
         target = q.copy()
         for i in range(len(batch)):
+            # compute the Bellman target
             target[i, a[i]] = r[i] if d[i] else r[i] + 0.99 * np.max(q_next[i])
 
+        # Update the network via backpropagation
         self.net.backward(target)
 
-    # Automatically saves network weights, epsilon, episode count, rewards, and best scores to .pkl file
+    # Create a function called save that saves network weights, epsilon, episode count, rewards, and best scores to a .pkl file
     def save(self):
         pickle.dump({'W': self.net.W, 'B': self.net.B, 'e': self.epsilon,
                      'ep': self.episode, 'r': self.rewards, 'b': self.best,
                      'bts': self.best_test_steps}, open('dqn.pkl', 'wb'))
 
-    # Loads a previously saved model and restores all training state if the data exists
+    # Create a function that loads a previously saved model and restores all training state if the data exists
     def load(self):
         if os.path.exists('dqn.pkl'):
             try:
@@ -133,38 +142,59 @@ class Reinforcement_learning:
             except: pass
 
 
-# Environment class - simulates the inverted pendulum on a cart
+# Create an Environment class that simulates the inverted pendulum on a cart
 class Env:
-    # Sets physics constants: gravity, pendulum length, pendulum mass, cart mass
+    # Create a function that initialises the physics constants - gravity, pendulum length, pendulum mass, cart mass
     def __init__(self):
         self.g, self.L, self.m, self.M = 9.81, 2.0, 0.5, 2.0
         self.scale, self.track_y = 80, H - 150
         self.reset()
 
-    # Resets the environment - cart to centre, angle randomised between -0.3 and 0.3 radians
+    # Create a function that resets the environment
     def reset(self):
+        # Set cart position, cart velocity, and pole angular velocity to 0
         self.x = self.x_dot = self.theta_dot = 0
+
+        # Randomize the starting pole angle between -0.3 and 0.3 radians
         self.theta = random.uniform(-0.3, 0.3)
+
+        # Reset step counter and cumulative episode reward
         self.steps = self.total_r = 0
         return self.state()
 
-    # Returns the current observation as a normalised 4-element array
-    # Angle is wrapped to [-pi, pi] using atan2
+    # Create a function called state that takes physics values that are put into a state that the neural network can read
     def state(self):
+        # The angle is wrapped to [-pi, pi] using atan2
         th = math.atan2(math.sin(self.theta), math.cos(self.theta))
+
+        # Returns the current environment state as a normalised 4 - element array
         return np.array([self.x/3, self.x_dot/5, th, self.theta_dot/5], dtype=np.float32)
 
-    # Applies a force to the cart and advances physics by 4 sub-steps (0.004s each)
-    # Returns (next_state, reward, done). Reward: +1 alive, -10 if fallen
+
     # Training ends after 500 steps or failure; testing only ends on failure
+    # Create a function called step that tracks each step of every action
     def step(self, action, training=True):
+        # Applies a force to the cart and advances physics by 4 sub-steps (0.004s each)
         force = FORCES[action]
 
+        # runs 4 sub-steps per action (each 0.004s  = 0.016s total per frame). The smaller the steps the more accurate physics simulation.
         for _ in range(4):
+            # sine and cosine of the current angle (reused to avoid recalculating)
             s, c = math.sin(self.theta), math.cos(self.theta)
+
+            # Sub-steps of computing the physics simulation
+            # Initialise the denominator shared by both equations. Represents the whole mass of the system
             den = self.M + self.m*s*s + 0.0001
+
+            # Pole angular acceleration - self.g*s*(self.M+self.m) — is gravity pulling the pole down
+            # - c*(force + ...) — is the cart's movement pushing back
             th_dd = (self.g*s*(self.M+self.m) - c*(force + self.m*self.L*self.theta_dot**2*s)) / (self.L*den)
+
+            # Cart linear acceleration - how fast the cart accelerates made up of the force and self.m*self.L... the pole pulling the cart
+            # as it swings
             x_dd = (force + self.m*self.L*(self.theta_dot**2*s - th_dd*c)) / den
+
+            # Euler integration
             self.theta_dot = np.clip(self.theta_dot + th_dd*0.004, -10, 10)
             self.theta += self.theta_dot * 0.004
             self.x_dot = np.clip(self.x_dot + x_dd*0.004, -10, 10)
@@ -181,7 +211,7 @@ class Env:
         fallen = abs(th) > 0.4 or abs(self.x) > 2.5
 
         if training:
-            done = fallen or self.steps >= 500
+            done = fallen or self.steps >= 1000
         else:
             done = fallen
 
@@ -190,6 +220,8 @@ class Env:
             r = -10
 
         self.total_r += r
+
+        # Returns (next_state, reward, and done)
         return self.state(), r, done
 
     # Renders the pendulum, cart, track, and force arrow on screen
@@ -207,7 +239,7 @@ class Env:
         pygame.draw.circle(screen, GREEN if th < 0.1 else YELLOW if th < 0.3 else RED, (bx, by), 12)
 
 # Main game loop - handles keyboard input, runs the agent's action-train loop,
-# displays stats on screen, and renders a reward history graph
+# displays statistics on screen, and renders a reward history graph
 def main():
     env, agent = Env(), Reinforcement_learning()
     agent.load()
@@ -290,5 +322,5 @@ def main():
 
     agent.save()
     pygame.quit()
-# Call main function
+# Call main
 main()

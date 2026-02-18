@@ -44,9 +44,9 @@ I've found that in my case, somewhere between episodes 500 to 1000 is where the 
 
 ## Usage
 
-Train the agent until the reward graph turns green like this:
+Train the agent until the reward graph turns from red to green like this:
 
-<img width="354" height="220" alt="Reward graph showing successful training" src="https://github.com/user-attachments/assets/41cc1804-7d54-42d0-b5af-31186f62d8c9" />
+<img width="338" height="164" alt="image" src="https://github.com/user-attachments/assets/af0ff08c-cb0f-415c-82a6-1becc7494170" />
 
 Then press **F** to stop 50x speed, and press **T** to switch to test mode and watch the pendulum balance indefinitely.
 
